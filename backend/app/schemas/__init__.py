@@ -17,6 +17,9 @@ from app.schemas.sos import (
     SOSEventResponse,
     NotificationResponse,
 )
+from app.schemas.location import (
+    LocationPinResponse,
+)
 
 __all__ = [
     "UserBase",
@@ -32,4 +35,5 @@ __all__ = [
     "SOSTriggerRequest",
     "SOSEventResponse",
     "NotificationResponse",
+    "LocationPinResponse",
 ]
