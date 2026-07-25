@@ -10,6 +10,21 @@ from app.services.sos_service import SOSService
 router = APIRouter()
 
 
+@router.get(
+    "/",
+    status_code=status.HTTP_200_OK,
+    summary="SOS module overview",
+    description="Returns informational overview for the manual SOS endpoint."
+)
+def sos_info():
+    """Informational GET endpoint for /api/v1/sos."""
+    return {
+        "service": "SentinelAI Manual SOS Module",
+        "action": "Use POST /api/v1/sos/trigger to dispatch emergency alerts",
+        "docs": "/docs"
+    }
+
+
 @router.post(
     "/trigger",
     response_model=SOSEventResponse,
