@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from app.core.config import settings
+from app.api.v1.endpoints import auth
 
 api_router = APIRouter()
 
@@ -12,3 +13,7 @@ async def health_check():
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION
     }
+
+
+# Include authentication endpoints
+api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])

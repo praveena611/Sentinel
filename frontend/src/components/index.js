@@ -1,1 +1,3 @@
-/** Component module exports */
+import ProtectedRoute from './ProtectedRoute';
+
+export { ProtectedRoute };
