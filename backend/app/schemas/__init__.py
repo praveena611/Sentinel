@@ -20,6 +20,13 @@ from app.schemas.sos import (
 from app.schemas.location import (
     LocationPinResponse,
 )
+from app.schemas.ai import (
+    TextPredictionRequest,
+    TextPredictionResponse,
+    TextDispatchRequest,
+    PredictionRecordResponse,
+    TextDispatchResponse,
+)
 
 __all__ = [
     "UserBase",
@@ -36,4 +43,9 @@ __all__ = [
     "SOSEventResponse",
     "NotificationResponse",
     "LocationPinResponse",
+    "TextPredictionRequest",
+    "TextPredictionResponse",
+    "TextDispatchRequest",
+    "PredictionRecordResponse",
+    "TextDispatchResponse",
 ]

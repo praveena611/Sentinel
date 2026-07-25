@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Shield, LogOut, User as UserIcon, LogIn, UserPlus, Users, LayoutDashboard, AlertTriangle } from 'lucide-react';
+import { Shield, LogOut, User as UserIcon, LogIn, UserPlus, Users, LayoutDashboard, AlertTriangle, Cpu } from 'lucide-react';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -9,6 +9,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import EmergencyContacts from './pages/EmergencyContacts';
 import SOS from './pages/SOS';
+import AIDetection from './pages/AIDetection';
 
 function NavigationBar() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -60,6 +61,17 @@ function NavigationBar() {
               >
                 <Users className="w-4 h-4" />
                 <span>Contacts</span>
+              </Link>
+              <Link
+                to="/ai"
+                className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+                  isActive('/ai')
+                    ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                }`}
+              >
+                <Cpu className="w-4 h-4 text-blue-400" />
+                <span>AI Detection</span>
               </Link>
               <Link
                 to="/sos"
@@ -145,12 +157,19 @@ function HomeOverview() {
 
           <div className="flex flex-wrap items-center justify-center gap-4">
             {isAuthenticated ? (
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center justify-center gap-4">
                 <Link
                   to="/dashboard"
                   className="px-8 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-base border border-slate-700 transition-all flex items-center gap-2"
                 >
                   Go to Dashboard
+                </Link>
+                <Link
+                  to="/ai"
+                  className="px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-base shadow-xl shadow-blue-600/30 transition-all flex items-center gap-2"
+                >
+                  <Cpu className="w-5 h-5" />
+                  AI Text Detection
                 </Link>
                 <Link
                   to="/sos"
@@ -219,13 +238,21 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/ai"
+                element={
+                  <ProtectedRoute>
+                    <AIDetection />
+                  </ProtectedRoute>
+                }
+              />
             </Routes>
           </main>
 
           <footer className="border-t border-slate-800/80 py-6 px-6 glass-card">
             <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
               <p>© 2026 SentinelAI — Intelligent Multimodal Emergency Response Platform.</p>
-              <p className="font-mono">Clean Architecture • ntfy.sh Emergency Pipeline</p>
+              <p className="font-mono">DistilBERT • OpenAI Whisper • YOLOv8</p>
             </div>
           </footer>
         </div>
