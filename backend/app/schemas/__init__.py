@@ -6,6 +6,12 @@ from app.schemas.user import (
     Token,
     TokenData,
 )
+from app.schemas.contact import (
+    ContactBase,
+    ContactCreate,
+    ContactUpdate,
+    ContactResponse,
+)
 
 __all__ = [
     "UserBase",
@@ -14,4 +20,8 @@ __all__ = [
     "UserResponse",
     "Token",
     "TokenData",
+    "ContactBase",
+    "ContactCreate",
+    "ContactUpdate",
+    "ContactResponse",
 ]

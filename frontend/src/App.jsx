@@ -1,15 +1,17 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
-import { Shield, LogOut, User as UserIcon, LogIn, UserPlus } from 'lucide-react';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Shield, LogOut, User as UserIcon, LogIn, UserPlus, Users, LayoutDashboard } from 'lucide-react';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import EmergencyContacts from './pages/EmergencyContacts';
 
 function NavigationBar() {
   const { user, isAuthenticated, logout } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -17,23 +19,55 @@ function NavigationBar() {
     navigate('/login');
   };
 
+  const isActive = (path) => location.pathname === path;
+
   return (
     <header className="sticky top-0 z-50 glass-card border-b border-slate-800/80 px-6 py-3.5">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Brand Logo */}
-        <Link to={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-xl bg-red-600/20 border border-red-500/40 flex items-center justify-center text-red-500 group-hover:scale-105 transition-transform">
-            <Shield className="w-6 h-6" />
-          </div>
-          <span className="text-xl font-bold tracking-tight text-white">
-            Sentinel<span className="text-red-500">AI</span>
-          </span>
-        </Link>
+        <div className="flex items-center gap-8">
+          <Link to={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-3 group">
+            <div className="w-10 h-10 rounded-xl bg-red-600/20 border border-red-500/40 flex items-center justify-center text-red-500 group-hover:scale-105 transition-transform">
+              <Shield className="w-6 h-6" />
+            </div>
+            <span className="text-xl font-bold tracking-tight text-white">
+              Sentinel<span className="text-red-500">AI</span>
+            </span>
+          </Link>
+
+          {/* Navigation Links for Authenticated Users */}
+          {isAuthenticated && (
+            <nav className="hidden md:flex items-center gap-1">
+              <Link
+                to="/dashboard"
+                className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+                  isActive('/dashboard')
+                    ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                }`}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Dashboard</span>
+              </Link>
+              <Link
+                to="/contacts"
+                className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+                  isActive('/contacts')
+                    ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span>Contacts</span>
+              </Link>
+            </nav>
+          )}
+        </div>
 
         {/* Right Navigation Controls */}
         <div className="flex items-center gap-4">
           {isAuthenticated ? (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-medium text-slate-300">
                 <div className="w-6 h-6 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 font-bold">
                   {user?.full_name?.charAt(0) || 'U'}
@@ -145,6 +179,14 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/contacts"
+                element={
+                  <ProtectedRoute>
+                    <EmergencyContacts />
                   </ProtectedRoute>
                 }
               />
