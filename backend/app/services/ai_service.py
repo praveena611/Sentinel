@@ -121,16 +121,23 @@ class AIService:
         """
         Execute full Emergency Pipeline for AI Voice Detection:
         1. Transcribe speech audio to text using OpenAI Whisper
-        2. Classify transcribed text into emergency category via DistilBERT
-        3. Store EmergencyEvent DB record
-        4. Store Prediction DB record (modality="Voice")
-        5. Publish Ntfy alert to ntfy.sh
-        6. Store Notification DB record
-        7. Return complete dispatch result
+        2. Verify speech is present
+        3. Classify transcribed text into emergency category via DistilBERT
+        4. Store EmergencyEvent DB record
+        5. Store Prediction DB record (modality="Voice")
+        6. Publish Ntfy alert to ntfy.sh
+        7. Store Notification DB record
+        8. Return complete dispatch result
         """
         # 1. Speech-to-Text Transcription via Whisper
         transcribe_res = voice_transcriber_engine.transcribe(audio_bytes, filename)
         transcribed_text = transcribe_res["text"]
+
+        if not transcribe_res.get("has_speech", True):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No spoken speech detected in audio recording. Please speak clearly into your microphone when recording."
+            )
 
         # 2. Reuse Text Classification Pipeline
         prediction_result = text_classifier_engine.predict(transcribed_text)

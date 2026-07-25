@@ -7,24 +7,27 @@ class WhisperVoiceTranscriber:
     """
     OpenAI Whisper Speech-to-Text Transcriber Engine for SentinelAI.
     Converts audio streams and recorded voice files into clean text transcriptions.
+    Handles silent audio and un-intelligible noise detection.
     """
 
     def __init__(self):
-        self.model_name = "Whisper-Base"
+        self.model_name = "OpenAI Whisper"
 
     def transcribe(self, audio_bytes: bytes, filename: str = "audio.webm") -> Dict[str, Any]:
         """
         Transcribe audio bytes to text string.
+        Detects silent or empty audio recordings.
         """
-        if not audio_bytes or len(audio_bytes) == 0:
+        # 1. Silent or empty audio check (< 500 bytes is essentially empty/silent container header)
+        if not audio_bytes or len(audio_bytes) < 500:
             return {
-                "text": "Help me! I am in immediate danger, please send help!",
+                "text": "No speech detected in audio recording. Please speak clearly into your microphone.",
                 "language": "en",
-                "duration": 3.5,
-                "model": self.model_name
+                "duration": 0.0,
+                "model": self.model_name,
+                "has_speech": False
             }
 
-        # Save audio bytes to a temporary file for processing
         ext = os.path.splitext(filename)[1] if filename else ".webm"
         if not ext:
             ext = ".webm"
@@ -34,51 +37,59 @@ class WhisperVoiceTranscriber:
                 tmp.write(audio_bytes)
                 tmp_path = tmp.name
 
-            # Try loading whisper if installed, or use robust speech recognition parser
+            transcribed_text = ""
+
+            # Attempt 1: Native Whisper Speech Recognition (if openai-whisper installed)
             try:
                 import whisper
                 model = whisper.load_model("base")
                 result = model.transcribe(tmp_path)
                 transcribed_text = result.get("text", "").strip()
             except Exception:
-                # High-fidelity NLP fallback speech decoder for emergency audio payloads
-                transcribed_text = self._heuristic_speech_decoder(audio_bytes)
+                pass
+
+            # Attempt 2: SpeechRecognition library fallback
+            if not transcribed_text:
+                try:
+                    import speech_recognition as sr
+                    r = sr.Recognizer()
+                    with sr.AudioFile(tmp_path) as source:
+                        audio_data = r.record(source)
+                        transcribed_text = r.recognize_google(audio_data)
+                except Exception:
+                    pass
 
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
 
+            # If no speech was recognized from silent or non-vocal audio
             if not transcribed_text:
-                transcribed_text = "Emergency situation, I need immediate medical and police assistance!"
+                transcribed_text = "No distinct speech detected in audio recording. Please try speaking your emergency situation again."
+                return {
+                    "text": transcribed_text,
+                    "language": "en",
+                    "duration": round(len(audio_bytes) / 16000.0, 2),
+                    "model": self.model_name,
+                    "has_speech": False
+                }
 
             return {
                 "text": transcribed_text,
                 "language": "en",
-                "duration": round(len(audio_bytes) / 16000.0, 2) if len(audio_bytes) > 0 else 3.0,
-                "model": self.model_name
+                "duration": round(len(audio_bytes) / 16000.0, 2),
+                "model": self.model_name,
+                "has_speech": True
             }
 
         except Exception as e:
             return {
-                "text": "Emergency! Please send help immediately!",
+                "text": "No speech detected. Please speak clearly.",
                 "language": "en",
-                "duration": 3.0,
+                "duration": 0.0,
                 "error": str(e),
-                "model": self.model_name
+                "model": self.model_name,
+                "has_speech": False
             }
-
-    def _heuristic_speech_decoder(self, audio_bytes: bytes) -> str:
-        """Fallback decoder for speech audio streams."""
-        size = len(audio_bytes)
-        if size % 5 == 0:
-            return "I am having severe chest pain and I cannot breathe, send an ambulance!"
-        elif size % 4 == 0:
-            return "Someone is following me with a gun, I need police right now!"
-        elif size % 3 == 0:
-            return "Our house is on fire and smoke is filling the rooms, help!"
-        elif size % 2 == 0:
-            return "Severe car accident on the highway, multiple vehicles involved!"
-        else:
-            return "Flash flood water is rising rapidly, we are trapped on the roof!"
 
 
 # Singleton instance
