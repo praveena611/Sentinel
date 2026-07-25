@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
 from app.ai.text_classifier import text_classifier_engine
+from app.ai.voice_transcriber import voice_transcriber_engine
 from app.repositories.event_repository import EventRepository
 from app.repositories.prediction_repository import PredictionRepository
 from app.notifications.notification_service import NtfyNotificationService
@@ -13,13 +14,17 @@ from app.schemas.ai import (
     TextDispatchResponse,
     PredictionRecordResponse,
 )
+from app.schemas.voice import (
+    VoiceTranscribeResponse,
+    VoiceDispatchResponse,
+)
 from app.schemas.sos import SOSEventResponse, NotificationResponse
 
 
 class AIService:
     """
-    Service orchestrating AI Emergency Detection and full Emergency Pipeline.
-    User Input (Text) -> AI Processing -> Emergency Classification -> Confidence Score -> Acquire Location -> Store Event -> Store Prediction -> Ntfy Alert -> Store Notification -> Update Dashboard
+    Service orchestrating Multimodal AI Emergency Detection and full Emergency Pipeline.
+    Supports Text, Voice (Whisper STT), and Image (YOLOv8) modalities.
     """
 
     def __init__(self, db: Session):
@@ -28,6 +33,7 @@ class AIService:
         self.pred_repo = PredictionRepository(db)
         self.notification_service = NtfyNotificationService()
 
+    # --- TEXT MODALITY ---
     def predict_text(self, payload: TextPredictionRequest) -> TextPredictionResponse:
         """Run AI text classification and return prediction result."""
         res = text_classifier_engine.predict(payload.text)
@@ -36,21 +42,11 @@ class AIService:
     def analyze_and_dispatch_text(
         self, payload: TextDispatchRequest, user: User
     ) -> TextDispatchResponse:
-        """
-        Execute full Emergency Pipeline for AI Text Detection:
-        1. Classify text emergency type and confidence score
-        2. Create EmergencyEvent in DB
-        3. Create Prediction record in DB
-        4. Broadcast push notification via NtfyNotificationService
-        5. Create Notification record in DB
-        6. Return complete dispatch result
-        """
-        # 1. AI Text Classification
+        """Execute full Emergency Pipeline for AI Text Detection."""
         prediction_result = text_classifier_engine.predict(payload.text)
         emergency_type = f"{prediction_result['prediction']} Emergency"
         confidence_score = prediction_result["confidence"]
 
-        # 2. Store Emergency Event
         event = self.event_repo.create_event(
             user_id=user.id,
             emergency_type=emergency_type,
@@ -60,7 +56,6 @@ class AIService:
             status="Emergency Detected",
         )
 
-        # 3. Store Prediction Record in DB
         pred_record = self.pred_repo.create_prediction(
             emergency_event_id=event.id,
             modality="Text",
@@ -68,7 +63,6 @@ class AIService:
             confidence=confidence_score,
         )
 
-        # 4. Broadcast Notification via NtfyNotificationService
         dispatch_result = self.notification_service.send_sos_alert(
             user_name=user.full_name,
             emergency_type=emergency_type,
@@ -79,14 +73,12 @@ class AIService:
             created_at=event.created_at,
         )
 
-        # 5. Store Notification Record in DB
         notification_status = dispatch_result.get("status", "FAILED")
         notification_record = self.event_repo.create_notification_record(
             emergency_event_id=event.id,
             notification_status=notification_status,
         )
 
-        # 6. Format Response Payload
         google_maps_url = f"https://maps.google.com/?q={event.latitude},{event.longitude}"
         notification_dto = NotificationResponse.model_validate(notification_record)
 
@@ -107,6 +99,111 @@ class AIService:
         pred_dto = TextPredictionResponse(**prediction_result)
 
         return TextDispatchResponse(
+            prediction=pred_dto,
+            event=event_dto,
+            prediction_record=pred_record_dto,
+        )
+
+    # --- VOICE MODALITY ---
+    def transcribe_voice(self, audio_bytes: bytes, filename: str) -> VoiceTranscribeResponse:
+        """Transcribe voice audio bytes to text using OpenAI Whisper."""
+        res = voice_transcriber_engine.transcribe(audio_bytes, filename)
+        return VoiceTranscribeResponse(
+            text=res["text"],
+            language=res.get("language", "en"),
+            duration=res.get("duration", 3.0),
+            model="OpenAI Whisper",
+        )
+
+    def analyze_and_dispatch_voice(
+        self, audio_bytes: bytes, filename: str, latitude: float, longitude: float, user: User
+    ) -> VoiceDispatchResponse:
+        """
+        Execute full Emergency Pipeline for AI Voice Detection:
+        1. Transcribe speech audio to text using OpenAI Whisper
+        2. Classify transcribed text into emergency category via DistilBERT
+        3. Store EmergencyEvent DB record
+        4. Store Prediction DB record (modality="Voice")
+        5. Publish Ntfy alert to ntfy.sh
+        6. Store Notification DB record
+        7. Return complete dispatch result
+        """
+        # 1. Speech-to-Text Transcription via Whisper
+        transcribe_res = voice_transcriber_engine.transcribe(audio_bytes, filename)
+        transcribed_text = transcribe_res["text"]
+
+        # 2. Reuse Text Classification Pipeline
+        prediction_result = text_classifier_engine.predict(transcribed_text)
+        prediction_result["modality"] = "Voice"
+        prediction_result["model"] = "OpenAI Whisper + DistilBERT"
+
+        emergency_type = f"{prediction_result['prediction']} Emergency (Voice)"
+        confidence_score = prediction_result["confidence"]
+
+        # 3. Store Emergency Event
+        event = self.event_repo.create_event(
+            user_id=user.id,
+            emergency_type=emergency_type,
+            confidence_score=confidence_score,
+            latitude=latitude,
+            longitude=longitude,
+            status="Emergency Detected",
+        )
+
+        # 4. Store Prediction Record (modality="Voice")
+        pred_record = self.pred_repo.create_prediction(
+            emergency_event_id=event.id,
+            modality="Voice",
+            prediction=prediction_result["prediction"],
+            confidence=confidence_score,
+        )
+
+        # 5. Broadcast Notification via NtfyNotificationService
+        dispatch_result = self.notification_service.send_sos_alert(
+            user_name=user.full_name,
+            emergency_type=emergency_type,
+            confidence_score=confidence_score,
+            latitude=latitude,
+            longitude=longitude,
+            status="Emergency Detected",
+            created_at=event.created_at,
+        )
+
+        # 6. Store Notification Record
+        notification_status = dispatch_result.get("status", "FAILED")
+        notification_record = self.event_repo.create_notification_record(
+            emergency_event_id=event.id,
+            notification_status=notification_status,
+        )
+
+        # 7. Build Response
+        google_maps_url = f"https://maps.google.com/?q={event.latitude},{event.longitude}"
+        notification_dto = NotificationResponse.model_validate(notification_record)
+
+        event_dto = SOSEventResponse(
+            id=event.id,
+            user_id=event.user_id,
+            emergency_type=event.emergency_type,
+            confidence_score=event.confidence_score,
+            latitude=event.latitude,
+            longitude=event.longitude,
+            status=event.status,
+            created_at=event.created_at,
+            google_maps_url=google_maps_url,
+            notification=notification_dto,
+        )
+
+        pred_record_dto = PredictionRecordResponse.model_validate(pred_record)
+        pred_dto = TextPredictionResponse(**prediction_result)
+        transcribe_dto = VoiceTranscribeResponse(
+            text=transcribed_text,
+            language=transcribe_res.get("language", "en"),
+            duration=transcribe_res.get("duration", 3.0),
+            model="OpenAI Whisper",
+        )
+
+        return VoiceDispatchResponse(
+            transcription=transcribe_dto,
             prediction=pred_dto,
             event=event_dto,
             prediction_record=pred_record_dto,

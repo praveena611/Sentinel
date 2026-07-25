@@ -20,6 +20,30 @@ export const aiService = {
     const response = await apiClient.post('/ai/text/analyze-and-dispatch', payload);
     return response.data;
   },
+
+  /**
+   * Transcribe voice audio to text using OpenAI Whisper.
+   * @param {FormData} formData - Contains 'audio_file'
+   * @returns {Promise<Object>} VoiceTranscribeResponse
+   */
+  async transcribeVoice(formData) {
+    const response = await apiClient.post('/ai/voice/transcribe', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  /**
+   * Transcribe voice audio, classify intent, and execute emergency pipeline dispatch.
+   * @param {FormData} formData - Contains 'audio_file', 'latitude', 'longitude'
+   * @returns {Promise<Object>} VoiceDispatchResponse
+   */
+  async analyzeAndDispatchVoice(formData) {
+    const response = await apiClient.post('/ai/voice/analyze-and-dispatch', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
 };
 
 export default aiService;

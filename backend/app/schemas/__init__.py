@@ -27,6 +27,10 @@ from app.schemas.ai import (
     PredictionRecordResponse,
     TextDispatchResponse,
 )
+from app.schemas.voice import (
+    VoiceTranscribeResponse,
+    VoiceDispatchResponse,
+)
 
 __all__ = [
     "UserBase",
@@ -48,4 +52,6 @@ __all__ = [
     "TextDispatchRequest",
     "PredictionRecordResponse",
     "TextDispatchResponse",
+    "VoiceTranscribeResponse",
+    "VoiceDispatchResponse",
 ]
