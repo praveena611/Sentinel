@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Shield, LogOut, User as UserIcon, LogIn, UserPlus, Users, LayoutDashboard } from 'lucide-react';
+import { Shield, LogOut, User as UserIcon, LogIn, UserPlus, Users, LayoutDashboard, AlertTriangle } from 'lucide-react';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import EmergencyContacts from './pages/EmergencyContacts';
+import SOS from './pages/SOS';
 
 function NavigationBar() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -59,6 +60,17 @@ function NavigationBar() {
               >
                 <Users className="w-4 h-4" />
                 <span>Contacts</span>
+              </Link>
+              <Link
+                to="/sos"
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+                  isActive('/sos')
+                    ? 'bg-red-600 text-white shadow-lg shadow-red-600/30'
+                    : 'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-600 hover:text-white'
+                }`}
+              >
+                <AlertTriangle className="w-4 h-4" />
+                <span>Trigger SOS</span>
               </Link>
             </nav>
           )}
@@ -133,12 +145,21 @@ function HomeOverview() {
 
           <div className="flex flex-wrap items-center justify-center gap-4">
             {isAuthenticated ? (
-              <Link
-                to="/dashboard"
-                className="px-8 py-3.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-base shadow-xl shadow-red-600/30 transition-all flex items-center gap-2"
-              >
-                Go to Dashboard
-              </Link>
+              <div className="flex items-center gap-4">
+                <Link
+                  to="/dashboard"
+                  className="px-8 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-base border border-slate-700 transition-all flex items-center gap-2"
+                >
+                  Go to Dashboard
+                </Link>
+                <Link
+                  to="/sos"
+                  className="px-8 py-3.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-base shadow-xl shadow-red-600/30 transition-all flex items-center gap-2"
+                >
+                  <AlertTriangle className="w-5 h-5" />
+                  Trigger Emergency SOS
+                </Link>
+              </div>
             ) : (
               <>
                 <Link
@@ -190,13 +211,21 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/sos"
+                element={
+                  <ProtectedRoute>
+                    <SOS />
+                  </ProtectedRoute>
+                }
+              />
             </Routes>
           </main>
 
           <footer className="border-t border-slate-800/80 py-6 px-6 glass-card">
             <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
               <p>© 2026 SentinelAI — Intelligent Multimodal Emergency Response Platform.</p>
-              <p className="font-mono">Clean Architecture • JWT Authenticated</p>
+              <p className="font-mono">Clean Architecture • ntfy.sh Emergency Pipeline</p>
             </div>
           </footer>
         </div>

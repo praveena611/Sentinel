@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from app.core.config import settings
-from app.api.v1.endpoints import auth, contacts
+from app.api.v1.endpoints import auth, contacts, sos
 
 api_router = APIRouter()
 
@@ -18,3 +18,4 @@ async def health_check():
 # Include endpoint routers
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(contacts.router, prefix="/contacts", tags=["Emergency Contacts"])
+api_router.include_router(sos.router, prefix="/sos", tags=["Manual SOS"])

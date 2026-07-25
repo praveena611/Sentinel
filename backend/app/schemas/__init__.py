@@ -12,6 +12,11 @@ from app.schemas.contact import (
     ContactUpdate,
     ContactResponse,
 )
+from app.schemas.sos import (
+    SOSTriggerRequest,
+    SOSEventResponse,
+    NotificationResponse,
+)
 
 __all__ = [
     "UserBase",
@@ -24,4 +29,7 @@ __all__ = [
     "ContactCreate",
     "ContactUpdate",
     "ContactResponse",
+    "SOSTriggerRequest",
+    "SOSEventResponse",
+    "NotificationResponse",
 ]

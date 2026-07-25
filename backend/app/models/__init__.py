@@ -1,4 +1,6 @@
 from app.models.user import User
 from app.models.contact import EmergencyContact
+from app.models.event import EmergencyEvent
+from app.models.notification import NotificationRecord
 
-__all__ = ["User", "EmergencyContact"]
+__all__ = ["User", "EmergencyContact", "EmergencyEvent", "NotificationRecord"]
