@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from app.core.config import settings
-from app.api.v1.endpoints import auth, contacts, sos, location, ai, intelligence
+from app.api.v1.endpoints import auth, contacts, sos, location, ai, intelligence, history
 
 api_router = APIRouter()
 
@@ -22,3 +22,4 @@ api_router.include_router(sos.router, prefix="/sos", tags=["Manual SOS"])
 api_router.include_router(location.router, prefix="/location", tags=["Location Tracking"])
 api_router.include_router(ai.router, prefix="/ai", tags=["AI Emergency Detection"])
 api_router.include_router(intelligence.router, prefix="/intelligence", tags=["Multimodal Intelligence & Fusion"])
+api_router.include_router(history.router, prefix="/history", tags=["Searchable Incident History"])

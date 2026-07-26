@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Shield, LogOut, User as UserIcon, LogIn, UserPlus, Users, LayoutDashboard, AlertTriangle, Cpu } from 'lucide-react';
+import { Shield, LogOut, User as UserIcon, LogIn, UserPlus, Users, LayoutDashboard, AlertTriangle, Cpu, History } from 'lucide-react';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard';
 import EmergencyContacts from './pages/EmergencyContacts';
 import SOS from './pages/SOS';
 import AIDetection from './pages/AIDetection';
+import IncidentHistory from './pages/IncidentHistory';
 
 function NavigationBar() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -72,6 +73,17 @@ function NavigationBar() {
               >
                 <Cpu className="w-4 h-4 text-blue-400" />
                 <span>AI Detection</span>
+              </Link>
+              <Link
+                to="/history"
+                className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all ${
+                  isActive('/history')
+                    ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                }`}
+              >
+                <History className="w-4 h-4 text-amber-400" />
+                <span>Incident Log</span>
               </Link>
               <Link
                 to="/sos"
@@ -144,7 +156,7 @@ function HomeOverview() {
         <div className="relative z-10 flex flex-col items-center text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold uppercase tracking-wider mb-6">
             <Shield className="w-3.5 h-3.5" />
-            Enterprise Emergency Response System
+            Enterprise Multimodal Emergency Intelligence Platform
           </div>
 
           <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight mb-4">
@@ -152,7 +164,7 @@ function HomeOverview() {
           </h1>
 
           <p className="text-slate-400 text-base md:text-xl max-w-2xl mb-8 leading-relaxed">
-            Intelligent Multimodal Emergency Response System — Real-Time Text, Voice, Vision & Geolocation Alerting.
+            Intelligent Multimodal Emergency Intelligence Platform — Decision Fusion, 0–100 Risk Scoring, Explainable AI (XAI) & Geolocation Alerting.
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-4">
@@ -169,14 +181,14 @@ function HomeOverview() {
                   className="px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-base shadow-xl shadow-blue-600/30 transition-all flex items-center gap-2"
                 >
                   <Cpu className="w-5 h-5" />
-                  AI Text Detection
+                  Multimodal AI Studio
                 </Link>
                 <Link
-                  to="/sos"
-                  className="px-8 py-3.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-base shadow-xl shadow-red-600/30 transition-all flex items-center gap-2"
+                  to="/history"
+                  className="px-8 py-3.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-base shadow-xl shadow-amber-600/30 transition-all flex items-center gap-2"
                 >
-                  <AlertTriangle className="w-5 h-5" />
-                  Trigger Emergency SOS
+                  <History className="w-5 h-5" />
+                  Incident History Audit Log
                 </Link>
               </div>
             ) : (
@@ -243,6 +255,14 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <AIDetection />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/history"
+                element={
+                  <ProtectedRoute>
+                    <IncidentHistory />
                   </ProtectedRoute>
                 }
               />

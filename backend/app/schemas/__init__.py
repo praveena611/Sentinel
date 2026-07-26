@@ -44,6 +44,11 @@ from app.schemas.intelligence import (
     MultimodalAnalysisRequest,
     MultimodalAnalysisResponse,
 )
+from app.schemas.history import (
+    IncidentListItemResponse,
+    IncidentDetailResponse,
+    IncidentPaginatedResponse,
+)
 
 __all__ = [
     "UserBase",
@@ -76,4 +81,7 @@ __all__ = [
     "XAIExplanationDTO",
     "MultimodalAnalysisRequest",
     "MultimodalAnalysisResponse",
+    "IncidentListItemResponse",
+    "IncidentDetailResponse",
+    "IncidentPaginatedResponse",
 ]
