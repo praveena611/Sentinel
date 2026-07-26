@@ -31,6 +31,11 @@ from app.schemas.voice import (
     VoiceTranscribeResponse,
     VoiceDispatchResponse,
 )
+from app.schemas.image import (
+    DetectedObject,
+    ImagePredictionResponse,
+    ImageDispatchResponse,
+)
 
 __all__ = [
     "UserBase",
@@ -54,4 +59,7 @@ __all__ = [
     "TextDispatchResponse",
     "VoiceTranscribeResponse",
     "VoiceDispatchResponse",
+    "DetectedObject",
+    "ImagePredictionResponse",
+    "ImageDispatchResponse",
 ]

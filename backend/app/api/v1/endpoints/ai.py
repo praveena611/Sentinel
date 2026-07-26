@@ -14,6 +14,10 @@ from app.schemas.voice import (
     VoiceTranscribeResponse,
     VoiceDispatchResponse,
 )
+from app.schemas.image import (
+    ImagePredictionResponse,
+    ImageDispatchResponse,
+)
 from app.services.ai_service import AIService
 
 router = APIRouter()
@@ -93,6 +97,51 @@ async def analyze_and_dispatch_voice(
     return ai_service.analyze_and_dispatch_voice(
         audio_bytes=audio_bytes,
         filename=audio_file.filename or "audio.webm",
+        latitude=latitude,
+        longitude=longitude,
+        user=current_user
+    )
+
+
+# --- IMAGE ENDPOINTS (YOLOv8) ---
+@router.post(
+    "/image/predict",
+    response_model=ImagePredictionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Detect emergency objects in image using YOLOv8",
+    description="Analyzes image using YOLOv8 object detector for Fire, Smoke, Vehicle Accident, Weapon, and Person Lying Down without dispatching alert."
+)
+async def predict_image(
+    image_file: UploadFile = File(..., description="Emergency scene image file"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> ImagePredictionResponse:
+    """Image YOLOv8 computer vision object detection endpoint."""
+    ai_service = AIService(db)
+    image_bytes = await image_file.read()
+    return ai_service.predict_image(image_bytes, image_file.filename or "image.jpg")
+
+
+@router.post(
+    "/image/analyze-and-dispatch",
+    response_model=ImageDispatchResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Detect objects via YOLOv8 and execute emergency dispatch",
+    description="Detects emergency objects in image via YOLOv8, classifies category, records event and prediction (modality='Image'), and broadcasts push alert via ntfy.sh."
+)
+async def analyze_and_dispatch_image(
+    image_file: UploadFile = File(..., description="Emergency scene image file"),
+    latitude: float = Form(..., ge=-90.0, le=90.0, description="GPS Latitude coordinate"),
+    longitude: float = Form(..., ge=-180.0, le=180.0, description="GPS Longitude coordinate"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> ImageDispatchResponse:
+    """Full AI image emergency pipeline dispatch endpoint."""
+    ai_service = AIService(db)
+    image_bytes = await image_file.read()
+    return ai_service.analyze_and_dispatch_image(
+        image_bytes=image_bytes,
+        filename=image_file.filename or "image.jpg",
         latitude=latitude,
         longitude=longitude,
         user=current_user
