@@ -225,20 +225,23 @@ class AIService:
     ) -> ImageDispatchResponse:
         """
         Execute full Emergency Pipeline for AI Image Detection (YOLOv8):
-        1. Run YOLOv8 computer vision object detection (Fire, Smoke, Accident, Weapon, Person Lying Down)
-        2. Map detected target into emergency category and confidence score
-        3. Create EmergencyEvent DB record
-        4. Create Prediction DB record (modality="Image")
+        1. Run YOLOv8 vision object detection
+        2. Verify emergency objects are present before dispatching alert
+        3. Store EmergencyEvent DB record
+        4. Store Prediction DB record (modality="Image")
         5. Publish Ntfy alert to ntfy.sh
-        6. Create Notification DB record
-        7. Return complete dispatch result
         """
-        # 1. YOLOv8 Vision Detection
         detection_res = image_detector_engine.detect(image_bytes, filename)
+
+        if not detection_res.get("has_emergency_objects", True):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No emergency hazards or threats detected in camera frame (Normal Scene). Alert dispatch skipped."
+            )
+
         emergency_type = f"{detection_res['prediction']} Emergency (Vision)"
         confidence_score = detection_res["confidence"]
 
-        # 2. Store Emergency Event
         event = self.event_repo.create_event(
             user_id=user.id,
             emergency_type=emergency_type,
@@ -248,7 +251,6 @@ class AIService:
             status="Emergency Detected",
         )
 
-        # 3. Store Prediction Record (modality="Image")
         pred_record = self.pred_repo.create_prediction(
             emergency_event_id=event.id,
             modality="Image",
@@ -256,7 +258,6 @@ class AIService:
             confidence=confidence_score,
         )
 
-        # 4. Broadcast Notification via NtfyNotificationService
         dispatch_result = self.notification_service.send_sos_alert(
             user_name=user.full_name,
             emergency_type=emergency_type,
@@ -267,14 +268,12 @@ class AIService:
             created_at=event.created_at,
         )
 
-        # 5. Store Notification Record
         notification_status = dispatch_result.get("status", "FAILED")
         notification_record = self.event_repo.create_notification_record(
             emergency_event_id=event.id,
             notification_status=notification_status,
         )
 
-        # 6. Build Response
         google_maps_url = f"https://maps.google.com/?q={event.latitude},{event.longitude}"
         notification_dto = NotificationResponse.model_validate(notification_record)
 
