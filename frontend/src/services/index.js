@@ -4,5 +4,6 @@ import contactService from './contactService';
 import sosService from './sosService';
 import locationService from './locationService';
 import aiService from './aiService';
+import intelligenceService from './intelligenceService';
 
-export { apiClient, authService, contactService, sosService, locationService, aiService };
+export { apiClient, authService, contactService, sosService, locationService, aiService, intelligenceService };

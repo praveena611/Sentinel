@@ -36,6 +36,14 @@ from app.schemas.image import (
     ImagePredictionResponse,
     ImageDispatchResponse,
 )
+from app.schemas.intelligence import (
+    ModalityEvidenceInput,
+    ContextIntelligenceDTO,
+    FusedEvidenceDTO,
+    XAIExplanationDTO,
+    MultimodalAnalysisRequest,
+    MultimodalAnalysisResponse,
+)
 
 __all__ = [
     "UserBase",
@@ -62,4 +70,10 @@ __all__ = [
     "DetectedObject",
     "ImagePredictionResponse",
     "ImageDispatchResponse",
+    "ModalityEvidenceInput",
+    "ContextIntelligenceDTO",
+    "FusedEvidenceDTO",
+    "XAIExplanationDTO",
+    "MultimodalAnalysisRequest",
+    "MultimodalAnalysisResponse",
 ]
