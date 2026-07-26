@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Cpu, MessageSquare, Mic, Image as ImageIcon, Send, Sparkles, 
   CheckCircle2, AlertTriangle, Shield, MapPin, ExternalLink, Loader2, 
-  AlertCircle, Square, Play, Upload, Volume2, Eye, Camera, Tag 
+  AlertCircle, Square, Play, Upload, Volume2, Eye, Camera, Tag, Video, VideoOff 
 } from 'lucide-react';
 import aiService from '../services/aiService';
 
@@ -28,7 +28,9 @@ export default function AIDetection() {
   const [dispatchingVoice, setDispatchingVoice] = useState(false);
   const [voiceDispatchResult, setVoiceDispatchResult] = useState(null);
 
-  // --- Image Modality State (YOLOv8) ---
+  // --- Image Modality State (YOLOv8 & Live Camera Feed) ---
+  const [imageMode, setImageMode] = useState('camera'); // 'camera' or 'upload'
+  const [isCameraActive, setIsCameraActive] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [predictingImage, setPredictingImage] = useState(false);
@@ -41,6 +43,11 @@ export default function AIDetection() {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
+
+  // Live Camera References
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const videoStreamRef = useRef(null);
 
   // Sample prompt chips for user testing
   const samplePrompts = [
@@ -61,17 +68,67 @@ export default function AIDetection() {
     }
   }, []);
 
-  // Recording Timer Effect
+  // Cleanup Camera Stream on Unmount or Tab Change
   useEffect(() => {
-    if (isRecording) {
-      timerRef.current = setInterval(() => {
-        setRecordingTime((prev) => prev + 1);
-      }, 1000);
-    } else {
-      clearInterval(timerRef.current);
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'image' || imageMode !== 'camera') {
+      stopCamera();
     }
-    return () => clearInterval(timerRef.current);
-  }, [isRecording]);
+  }, [activeTab, imageMode]);
+
+  // --- LIVE CAMERA FEED HANDLERS ---
+  const startCamera = async () => {
+    setError('');
+    setImagePrediction(null);
+    setImageDispatchResult(null);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }
+      });
+      videoStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setIsCameraActive(true);
+    } catch (err) {
+      console.error('Webcam error:', err);
+      setError('Unable to access webcam live feed. Please allow camera permissions or switch to File Upload mode.');
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoStreamRef.current) {
+      videoStreamRef.current.getTracks().forEach((track) => track.stop());
+      videoStreamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  const captureFrameBlob = () => {
+    if (!videoRef.current || !canvasRef.current) return null;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        const file = new File([blob], `live_feed_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        resolve(file);
+      }, 'image/jpeg', 0.92);
+    });
+  };
 
   // --- IMAGE (YOLOv8) HANDLERS ---
   const handleImageChange = (e) => {
@@ -86,8 +143,17 @@ export default function AIDetection() {
   };
 
   const handlePredictImageOnly = async () => {
-    if (!imageFile) {
-      setError('Please select or upload an emergency scene image first.');
+    let targetFile = imageFile;
+    if (imageMode === 'camera') {
+      if (!isCameraActive) {
+        setError('Please start the live camera feed first.');
+        return;
+      }
+      targetFile = await captureFrameBlob();
+    }
+
+    if (!targetFile) {
+      setError('Please select an image or start the live camera feed.');
       return;
     }
 
@@ -96,7 +162,7 @@ export default function AIDetection() {
     setImagePrediction(null);
 
     const formData = new FormData();
-    formData.append('image_file', imageFile, imageFile.name);
+    formData.append('image_file', targetFile, targetFile.name || 'live_frame.jpg');
 
     try {
       const res = await aiService.predictImage(formData);
@@ -110,8 +176,17 @@ export default function AIDetection() {
   };
 
   const handleAnalyzeAndDispatchImage = async () => {
-    if (!imageFile) {
-      setError('Please select or upload an emergency scene image first.');
+    let targetFile = imageFile;
+    if (imageMode === 'camera') {
+      if (!isCameraActive) {
+        setError('Please start the live camera feed first.');
+        return;
+      }
+      targetFile = await captureFrameBlob();
+    }
+
+    if (!targetFile) {
+      setError('Please select an image or start the live camera feed.');
       return;
     }
 
@@ -120,7 +195,7 @@ export default function AIDetection() {
     setImageDispatchResult(null);
 
     const formData = new FormData();
-    formData.append('image_file', imageFile, imageFile.name);
+    formData.append('image_file', targetFile, targetFile.name || 'live_frame.jpg');
     formData.append('latitude', location.lat);
     formData.append('longitude', location.lng);
 
@@ -318,6 +393,9 @@ export default function AIDetection() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      {/* Hidden Canvas for Live Camera Frame Capture */}
+      <canvas ref={canvasRef} className="hidden" />
+
       {/* Header Banner */}
       <div className="glass-card p-6 md:p-8 rounded-2xl border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -329,7 +407,7 @@ export default function AIDetection() {
             AI Emergency Detection
           </h1>
           <p className="mt-1 text-slate-400 text-sm">
-            Intelligently classify text, voice speech, and computer vision inputs into emergency categories with real-time dispatch.
+            Intelligently classify text, voice speech, and live camera vision streams into emergency categories with real-time dispatch.
           </p>
         </div>
       </div>
@@ -368,8 +446,8 @@ export default function AIDetection() {
               : 'glass-card text-slate-400 hover:text-white'
           }`}
         >
-          <ImageIcon className="w-4 h-4 text-amber-400" />
-          <span>Image Detection (YOLOv8)</span>
+          <Video className="w-4 h-4 text-amber-400" />
+          <span>Live Camera & Image Detection (YOLOv8)</span>
         </button>
       </div>
 
@@ -664,73 +742,155 @@ export default function AIDetection() {
         </div>
       )}
 
-      {/* TAB 3: IMAGE DETECTION (YOLOV8) */}
+      {/* TAB 3: IMAGE & LIVE CAMERA DETECTION (YOLOV8) */}
       {activeTab === 'image' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column: Image Upload Dropzone & Controls */}
+          {/* Left Column: Camera Feed / Image Upload Controls */}
           <div className="lg:col-span-2 space-y-6">
             <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <ImageIcon className="w-5 h-5 text-amber-400" />
-                  <h3 className="text-lg font-bold text-white">YOLOv8 Computer Vision Object Detection</h3>
+                  <Video className="w-5 h-5 text-amber-400" />
+                  <h3 className="text-lg font-bold text-white">YOLOv8 Live Camera & Vision Scan</h3>
                 </div>
-                <span className="text-xs text-slate-500 font-mono">YOLOv8 Engine</span>
+                
+                {/* Mode Selector Toggle (Live Camera Feed vs Upload Image) */}
+                <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => { setImageMode('camera'); setError(''); }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                      imageMode === 'camera'
+                        ? 'bg-amber-600 text-white shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    <span>Live Webcam</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setImageMode('upload'); stopCamera(); setError(''); }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                      imageMode === 'upload'
+                        ? 'bg-amber-600 text-white shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>File Upload</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Upload Dropzone & Image Preview */}
-              <div className="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col items-center justify-center text-center space-y-4">
-                {imagePreview ? (
-                  <div className="relative w-full max-h-[320px] rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center bg-black">
-                    <img src={imagePreview} alt="Emergency Scene Preview" className="max-h-[320px] w-auto object-contain rounded-xl" />
+              {/* Mode 1: Live Webcam Feed */}
+              {imageMode === 'camera' ? (
+                <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-col items-center justify-center text-center space-y-4">
+                  <div className="relative w-full max-h-[360px] min-h-[260px] rounded-xl overflow-hidden border border-slate-800 bg-black flex items-center justify-center">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className={`w-full max-h-[360px] object-cover rounded-xl ${!isCameraActive ? 'hidden' : ''}`}
+                    />
+                    
+                    {!isCameraActive && (
+                      <div className="py-12 px-6 flex flex-col items-center justify-center text-center space-y-3">
+                        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                          <Camera className="w-8 h-8" />
+                        </div>
+                        <h4 className="text-white font-bold text-base">Live Camera Feed Inactive</h4>
+                        <p className="text-slate-400 text-xs max-w-sm">
+                          Start your webcam to scan your surroundings live with YOLOv8 object detection.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={startCamera}
+                          className="mt-2 px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-lg shadow-amber-600/30 transition-all flex items-center gap-2"
+                        >
+                          <Video className="w-4 h-4" />
+                          <span>Start Live Camera Feed</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {isCameraActive && (
+                      <div className="absolute top-3 left-3 glass-card px-3 py-1 rounded-full text-[11px] font-semibold text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>LIVE CAMERA SCANNING</span>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="py-12 px-6 flex flex-col items-center justify-center text-center">
-                    <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-4">
-                      <Camera className="w-8 h-8" />
+
+                  {isCameraActive && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={stopCamera}
+                        className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition-all flex items-center gap-1.5 border border-slate-700"
+                      >
+                        <VideoOff className="w-4 h-4 text-red-400" />
+                        <span>Turn Off Camera</span>
+                      </button>
                     </div>
-                    <h4 className="text-white font-bold text-base mb-1">Upload Emergency Scene Photo</h4>
-                    <p className="text-slate-400 text-xs max-w-sm mb-4">
-                      YOLOv8 detects <strong className="text-amber-400">Fire, Smoke, Vehicle Accident, Weapon (Gun/Knife), and Person Lying Down</strong>.
-                    </p>
-                  </div>
-                )}
+                  )}
+                </div>
+              ) : (
+                /* Mode 2: Upload Image File */
+                <div className="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col items-center justify-center text-center space-y-4">
+                  {imagePreview ? (
+                    <div className="relative w-full max-h-[320px] rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center bg-black">
+                      <img src={imagePreview} alt="Emergency Scene Preview" className="max-h-[320px] w-auto object-contain rounded-xl" />
+                    </div>
+                  ) : (
+                    <div className="py-12 px-6 flex flex-col items-center justify-center text-center">
+                      <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-4">
+                        <Camera className="w-8 h-8" />
+                      </div>
+                      <h4 className="text-white font-bold text-base mb-1">Upload Emergency Scene Photo</h4>
+                      <p className="text-slate-400 text-xs max-w-sm mb-4">
+                        YOLOv8 detects <strong className="text-amber-400">Fire, Smoke, Vehicle Accident, Weapon (Gun/Knife), and Person Lying Down</strong>.
+                      </p>
+                    </div>
+                  )}
 
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="w-full max-w-md text-xs text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700 cursor-pointer"
-                />
-              </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="w-full max-w-md text-xs text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700 cursor-pointer"
+                  />
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="pt-4 flex items-center gap-3 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={handlePredictImageOnly}
-                  disabled={!imageFile || predictingImage || dispatchingImage}
+                  disabled={predictingImage || dispatchingImage}
                   className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition-all flex items-center gap-2 border border-slate-700 disabled:opacity-50"
                 >
                   {predictingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4 text-amber-400" />}
-                  <span>Detect Objects Only</span>
+                  <span>Scan Frame & Detect Objects</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleAnalyzeAndDispatchImage}
-                  disabled={!imageFile || predictingImage || dispatchingImage}
+                  disabled={predictingImage || dispatchingImage}
                   className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs shadow-lg shadow-red-600/30 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
                   {dispatchingImage ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Detecting & Dispatching...</span>
+                      <span>Scanning & Dispatching...</span>
                     </>
                   ) : (
                     <>
                       <Send className="w-4 h-4" />
-                      <span>Analyze & Dispatch Image Alert</span>
+                      <span>Scan & Dispatch Emergency Alert</span>
                     </>
                   )}
                 </button>
@@ -743,13 +903,12 @@ export default function AIDetection() {
             {imagePrediction ? (
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="glass-card rounded-2xl p-6 border border-slate-800 space-y-5">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">YOLOv8 Detection</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">YOLOv8 Vision Detection</span>
                   <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-mono border border-amber-500/20">
                     {imagePrediction.model}
                   </span>
                 </div>
 
-                {/* Detected Objects Tags */}
                 <div>
                   <span className="text-xs text-slate-400 block mb-2 font-medium">Detected Emergency Objects:</span>
                   <div className="flex flex-wrap gap-2">
@@ -805,7 +964,7 @@ export default function AIDetection() {
                 <Camera className="w-10 h-10 mx-auto text-slate-600 mb-3" />
                 <h4 className="text-white font-bold text-sm mb-1">YOLOv8 Vision Ready</h4>
                 <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                  Upload an emergency photo to detect Fire, Smoke, Accidents, Weapons, and Incapacitated Persons.
+                  Start your live camera stream or upload a photo to scan Fire, Smoke, Accidents, Weapons, and Incapacitated Persons.
                 </p>
               </div>
             )}
