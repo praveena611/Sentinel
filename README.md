@@ -111,3 +111,10 @@ Frontend application will run on `http://localhost:5173`.
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## Author
+
+**Praveena** — [GitHub Profile](https://github.com/praveena611)
+
